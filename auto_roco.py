@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import pyautogui
 import webbrowser
 import time
@@ -14,6 +15,8 @@ import pytesseract
 from PIL import Image, ImageEnhance, ImageFilter
 import numpy as np
 import re
+
+debug = 0
 
 pets = {
     "虫王": {
@@ -114,19 +117,26 @@ def test_get_top_window_txt():
     three_star_txt = None
     # 打印每个窗口的标题和控件信息
     for window in windows:
-        print(f"窗口标题: {window.window_text()}")
+        if debug == 1: print(f"窗口标题: {window.window_text()}")
         if '悟空' in window.window_text():
             for ctrl in window.children():
-                print(f"控件类型: {ctrl.element_info.control_type}, 控件名称: {ctrl.window_text()}")
-                if ctrl.element_info.control_type == 'Window':
+                if debug == 1: print(f"控件类型: {ctrl.element_info.control_type}, 控件名称: {ctrl.window_text()}")
+                if '更新公告' in ctrl.window_text():
+                    top_window = ctrl.children()
+                    if top_window[0].element_info.control_type == 'Button' and top_window[0].window_text() == '确定' :
+                        print(f"found {ctrl.window_text()}, fz need update")
+                        top_window[0].click_input()
+                        return 'update'
+
+                if ('更新公告' not in ctrl.window_text() or debug == 1) and ctrl.element_info.control_type == 'Window':
                     #print("found the window")
                     #print(f"{ctrl.class_name()}")
                     top_window = ctrl.children()
-                    #print(f"top_window 中控件数量: {len(top_window)}")
-                    #print(f"child0控件类型: {top_window[0].element_info.control_type}, 控件名称: {top_window[0].window_text()}")
+                    if debug == 1: print(f"top_window 中控件数量: {len(top_window)}")
+                    if debug == 1: print(f"child0控件类型: {top_window[0].element_info.control_type}, 控件名称: {top_window[0].window_text()}")
                     for w in top_window:
                         # 获取每个窗口对象的控件类型和窗口文本信息
-                        print(f"child控件类型: {w.element_info.control_type}, 控件名称: {w.window_text()}")
+                        #print(f"child控件类型: {w.element_info.control_type}, 控件名称: {w.window_text()}")
                         if w.element_info.control_type == 'Pane':
                             w = w.children()
                             three_star_txt = w[0].window_text()
@@ -192,7 +202,89 @@ def show_success_message():
     messagebox.showinfo("auto action success", "auto action is all done")
     root.destroy()
 #----------------------------------------------------------------------------------------------------------------#
+from playwright.sync_api import sync_playwright
+import requests
+import urllib.request
+
+def update_fz(fz_path):
+    print(f"we are going download to {fz_path}")
+    final_url = None
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            executable_path="C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+            headless=False,channel="msedge",
+            downloads_path=fz_path,
+            args=["--edge-kiosk-type=fullscreen"]) # headless=False 以便看到浏览器界面
+        page = browser.new_page()
+        page.goto("http://www.5kfz.com/#ltnr_download")
+        time.sleep(3)
+        # 查找元素，使用 CSS 选择器来定位
+        buttons = page.query_selector_all('button, a')  # 查找所有 button 和 a 标签
+        for button in buttons:
+            #print(button.inner_text())  # 打印每个按钮的文本内容
+            if '蓝奏' in button.inner_text():
+                print("found lan zou button")
+                button.click()
+                time.sleep(0.5)
+
+            if 'pan' in button.inner_text():
+                download_url = button.get_attribute('href')  # 获取下载链接
+                print(f"try goto {download_url}")
+                page.goto(download_url)#以下载链接开启新的页面
+                page.wait_for_selector("button, a")
+                time.sleep(3)
+                iframe = page.query_selector('iframe.n_downlink')
+                inside_thing = iframe.content_frame()
+                next_child = inside_thing.content()
+                url_pattern = r'href="(https://[^"]+)"'
+                target = re.search(url_pattern, next_child)
+                final_url = target.group(1)
+                print(f"new page {iframe}  ----------- {inside_thing}----------{next_child}")
+                print(f"new page {target.group(1)}")
+                break
+
+    if final_url is not None:
+    # 模拟浏览器请求头
+        headers = {
+            'Accept-Encoding': 'identity',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0'
+        }
+        response = requests.get(final_url, stream=True, headers=headers, allow_redirects=True)
+
+        if response.status_code == 200:
+            fz_path = os.path.join(fz_path, 'new.exe')
+            # 检查文件大小
+            expected_size = response.headers.get('Content-Length')
+            if expected_size is not None:
+                expected_size = int(expected_size)
+            
+            # 下载文件
+            downloaded_size = 0
+            with open(fz_path, 'wb') as file:
+                for chunk in response.iter_content(chunk_size=1024*1024):
+                    if chunk:
+                        file.write(chunk)
+                        downloaded_size += len(chunk)
+            
+            # 验证完整性
+            if expected_size is not None:
+                if downloaded_size == expected_size:
+                    print(f"文件已成功下载并保存到 {fz_path}，大小为 {downloaded_size} 字节")
+                else:
+                    print(f"下载不完整，预期大小 {expected_size} 字节，实际下载 {downloaded_size} 字节")
+            else:
+                print(f"文件已下载到 {fz_path}，大小为 {downloaded_size} 字节（无法验证完整性）")
+        else:
+            print(f"下载失败，状态码: {response.status_code}")
+    else:
+        print(f"fz's download link can't get")
+    print(f"end")
+
 def finish_open_fz(path):
+    directory = os.path.dirname(path)
+    update_fz(directory)
+    exit()
+
     program_path = r"C:\Program Files\Tencent\QQNT\QQ.exe"
     if not is_program_running("QQ.exe"):
         subprocess.Popen(program_path)
@@ -208,9 +300,10 @@ def finish_open_fz(path):
     click_at(1438,988)  #规避辅助更新导致的可能提示框3
     click_at(1960,1093)  #click start
     time.sleep(15)
-    print("solve qq new bug")
-    click_at(1400,1000)  #solve qq bug
-    click_at(1400,1000)  #solve qq bug
+    result = test_get_top_window_txt()
+    if result == 'update':
+        directory = os.path.dirname(path)
+        #update_fz(directory)
     click_at(1364,375)  #click qq account
     time.sleep(15)
     click_at(1282,454)  #click 7 server 空海
@@ -289,31 +382,30 @@ def get_most_tiny_things():
 
 def try_to_finish_mix_machine(text):
     print(f"尝试完成合体机")
-    need_pet = '龙王'
+    need_pet = None
     time.sleep(1)
-    if '龙' in text:
-        print("we already used dragon, no need to change")
+    click_at(1550,918)  #先关闭合体机窗口，方便可能要做的换宠物操作
+    time.sleep(0.5)
+    if '机械' in text or '冰' in text:
+        need_pet = '立冬'
+    elif '武' in text or '恶魔' in text:
+        need_pet = '魔武'
+    elif '龙' in text:
+        need_pet = '龙王'
+    elif '水' in text:
+        need_pet = '碧水'
+    elif '虫' in text:
+        need_pet = '虫王'
+    elif '翼' in text:
+        need_pet = '苍羽'
     else:
-        click_at(1550,918)  #先关闭合体机窗口，方便可能要做的换宠物操作
-        time.sleep(0.5)
-        if '机械' in text or '冰' in text:
-            need_pet = '立冬'
-        elif '武' in text or '恶魔' in text:
-            need_pet = '魔武'
-        elif '水' in text:
-            need_pet = '碧水'
-        elif '虫' in text:
-            need_pet = '虫王'
-        elif '翼' in text:
-            need_pet = '苍羽'
-        else:
-            print(f"{text} this we can't handle yet")
-            click_at(1278,1324)  #选中活动专区
-            return need_pet
-        
-        carry_want_pets(need_pet)
-        pyautogui.doubleClick(743,1507)      #再打开合体机
-        time.sleep(2)
+        print(f"{text} this we can't handle yet")
+        click_at(1278,1324)  #选中活动专区
+        return need_pet
+    
+    carry_want_pets(need_pet)
+    pyautogui.doubleClick(743,1507)      #再打开合体机
+    time.sleep(2)
     
     #click_at(1302,843)  #一星
     #click_at(1302,860)  #二星
@@ -340,7 +432,7 @@ def try_to_finish_seven(last_pet):
     pyautogui.doubleClick(743,1450)      #开始勇者训练馆
     time.sleep(30)
     for count in range(3):
-        print(f"start try 暗黑远征军 {count}")
+        print(f"try 暗黑远征军 {count+1}")
         pyautogui.doubleClick(950,1450)      #暗黑远征军容易失败，重试3次
         time.sleep(35)
     click_at(1111,1400)  #选中 活动专区的七曜圣地
@@ -348,16 +440,15 @@ def try_to_finish_seven(last_pet):
     click_at(911,1560)  #选择困难
     click_at(1081,1471) #点击七曜打法选择条
     click_at(*pets["魔武"]["七曜打法坐标"])
-    click_at(1180,1460) #开始
-    time.sleep(36)
+    for count in range(2):   #七曜偶尔也会失败，重试2次
+        print(f"try 七曜 {count+1}")
+        click_at(1180,1460) #开始
+        time.sleep(36)
     return '魔武'
 
 def try_to_finish_newest_activity():
     #这是尝试完哨兵阴阴，已经停留在了活动专区
-    #click_at(670,1448)     #打开 活动打法的选择栏
-    #click_at(*pets["龙王"]["打法坐标"])     #pick 龙王打法
     time.sleep(1)
-    print("start to do old vip pet activity")
     click_at(1008,1405)      #选中 活动专区里的常驻
     pyautogui.doubleClick(743,1507)      #点开合体机
     time.sleep(1)
@@ -369,6 +460,7 @@ def try_to_finish_newest_activity():
     click_at(1530,1516)      #下滑三次
     click_at(1530,1516)      #下滑三次
     click_at(1530,1516)      #下滑三次
+    print("start to do old vip pet activity")
     pyautogui.doubleClick(950,1480)      #机械圣殿
     time.sleep(25)
     click_at(1530,1516)      #下滑两次
@@ -416,7 +508,7 @@ def first_month_challege_star_tower():
     time.sleep(10)
 
 def play_little_game_and_hang_out():
-    print(f"小游戏挂机")
+    print(f"小游戏挂机流程")
     time.sleep(5)
     pyautogui.keyDown('alt')
     pyautogui.press('f4')
@@ -493,8 +585,8 @@ def capture_and_ocr_region(x, y, width, height):
     text = pytesseract.image_to_string(image, lang='chi_sim', config='--psm 6')
     global original_text
     original_text = text
-    print(f"\n最开始提取的文本:{text}")
-    print(f"\n保存最开始提取的文本:{original_text}")
+    print(f"最开始提取的文本:{text}")
+    print(f"保存最开始提取的文本:{original_text}")
 
     # 放大图像
     scale_factor = 10
@@ -553,6 +645,7 @@ def try_to_challenge_the_green_chicken():
     time.sleep(3)      #由于最大49次
     ocr_text = capture_and_ocr_region(1287, 800, 300, 15)#尝试获取挑战条件
     use_pet = '龙王'
+    pets_list = None
     if '身高' in ocr_text:
         value_matches = re.findall(r'\d+\.\d+|\d+', ocr_text)
         value_matches[0] = float(value_matches[0])
@@ -580,10 +673,11 @@ def try_to_challenge_the_green_chicken():
                     use_pet = name
                     break
         
-        if use_pet == '龙王' and pets_list:
+        if use_pet == '龙王' and pets_list != None:
                 use_pet = next(iter(pets_list.items()))[0]  # 获取字典的第一项的名字
     elif '体重' in ocr_text:
-        ocr_text = original_text
+        if '内' not in ocr_text:
+            ocr_text = original_text
         value_matches = re.findall(r'\d+\.\d+|\d+', ocr_text)
         if value_matches:
             value_matches[0] = float(value_matches[0])
@@ -604,8 +698,16 @@ def try_to_challenge_the_green_chicken():
                 if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"]:
                     use_pet = name
                     break
+        elif '内' in ocr_text:
+            value_matches[1] = float(value_matches[1])
+            pets_list = {name: info for name, info in pets.items() if info["体重"] > value_matches[0] and info["体重"] < value_matches[1]}
+            for name, info in pets_list.items():
+                print(f"大于{value_matches[0]} 且小于 {value_matches[1]} 的有 {name}")
+                if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"]:
+                    use_pet = name
+                    break
 
-        if use_pet == '龙王' and pets_list:
+        if use_pet == '龙王' and pets_list != None:
             use_pet = next(iter(pets_list.items()))[0]  # 获取字典的第一项的名字
     elif '回合' in ocr_text:
         value_matches = re.findall(r'\d+\.\d+|\d+', ocr_text)
@@ -664,8 +766,8 @@ def main():
     #process_name = "Program.exe"  ##need edit
     #time.sleep(6)
     #try_to_challenge_the_green_chicken()
-    #play_little_game_and_hang_out()
     #try_to_finish_newest_activity()
+    #play_little_game_and_hang_out()
     #ocr_text = capture_and_ocr_region(1287, 800, 300, 15)
     #exit()
     #--------0 doing something may get u rich
