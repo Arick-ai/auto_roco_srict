@@ -141,7 +141,7 @@ def test_get_top_window_txt():
                             w = w.children()
                             three_star_txt = w[0].window_text()
                             print(f"合体机文本: {three_star_txt}")
-                            print(f"child d child控件类型: {w[0].element_info.control_type}, 控件名称: {w[0].window_text()}")
+                            #print(f"child d child控件类型: {w[0].element_info.control_type}, 控件名称: {w[0].window_text()}")
                             if '3星' in three_star_txt:
                                 return three_star_txt
                             else:
@@ -173,6 +173,7 @@ def is_program_running_pattern(program_name_pattern):
 
 def open_program(path):
 	##open some program
+    print(f"open {path}")
     subprocess.Popen(path)
 
 def click_at(x, y):
@@ -203,19 +204,36 @@ def show_success_message():
     root.destroy()
 #----------------------------------------------------------------------------------------------------------------#
 from playwright.sync_api import sync_playwright
-import requests
-import urllib.request
 
 def update_fz(fz_path):
+    files = os.listdir(fz_path)
+    for file in files:
+        if debug == 1: print(file)
+        if '悟空' in file and 'exe' in file:
+            click_at(1960, 1200) #close fz avoid delete failed
+            oldfz = file
+            oldfz = os.path.join(fz_path, oldfz)
+            print(f"delete old {oldfz}")
+            os.remove(oldfz)
+
     print(f"we are going download to {fz_path}")
     final_url = None
     with sync_playwright() as p:
+        #browser = p.chromium.launch_persistent_context(#非inprivate模式
         browser = p.chromium.launch(
+            #user_data_dir=r"C:\Users\19508\Desktop\封包\工具\data",#非inprivate模式
             executable_path="C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
-            headless=False,channel="msedge",
-            downloads_path=fz_path,
-            args=["--edge-kiosk-type=fullscreen"]) # headless=False 以便看到浏览器界面
-        page = browser.new_page()
+            #headless=False,#出现窗口
+            channel="msedge",
+            downloads_path=fz_path,   
+            #no_viewport=True,#非inprivate模式
+            #bypass_csp=True,#非inprivate模式
+            #accept_downloads=True,#非inprivate模式
+            args=['--start-maximized']
+            )
+
+        page = browser.new_page() 
+        #page = browser.pages[0]#非inprivate模式
         page.goto("http://www.5kfz.com/#ltnr_download")
         time.sleep(3)
         # 查找元素，使用 CSS 选择器来定位
@@ -239,61 +257,41 @@ def update_fz(fz_path):
                 url_pattern = r'href="(https://[^"]+)"'
                 target = re.search(url_pattern, next_child)
                 final_url = target.group(1)
-                print(f"new page {iframe}  ----------- {inside_thing}----------{next_child}")
+                #print(f"new page {iframe}  ----------- {inside_thing}----------{next_child}")
                 print(f"new page {target.group(1)}")
+                #download_page = browser.new_page()
+                with page.expect_download() as download_info:
+                    try:
+                        page.goto(final_url)
+                    except:
+                        pass
+                
+                download = download_info.value
+                download.save_as(f"{fz_path}/{download.suggested_filename}")
+                print(f"download success {download.suggested_filename}")
+                download.delete()
                 break
 
-    if final_url is not None:
-    # 模拟浏览器请求头
-        headers = {
-            'Accept-Encoding': 'identity',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0'
-        }
-        response = requests.get(final_url, stream=True, headers=headers, allow_redirects=True)
-
-        if response.status_code == 200:
-            fz_path = os.path.join(fz_path, 'new.exe')
-            # 检查文件大小
-            expected_size = response.headers.get('Content-Length')
-            if expected_size is not None:
-                expected_size = int(expected_size)
-            
-            # 下载文件
-            downloaded_size = 0
-            with open(fz_path, 'wb') as file:
-                for chunk in response.iter_content(chunk_size=1024*1024):
-                    if chunk:
-                        file.write(chunk)
-                        downloaded_size += len(chunk)
-            
-            # 验证完整性
-            if expected_size is not None:
-                if downloaded_size == expected_size:
-                    print(f"文件已成功下载并保存到 {fz_path}，大小为 {downloaded_size} 字节")
-                else:
-                    print(f"下载不完整，预期大小 {expected_size} 字节，实际下载 {downloaded_size} 字节")
-            else:
-                print(f"文件已下载到 {fz_path}，大小为 {downloaded_size} 字节（无法验证完整性）")
-        else:
-            print(f"下载失败，状态码: {response.status_code}")
-    else:
-        print(f"fz's download link can't get")
     print(f"end")
 
 def finish_open_fz(path):
     directory = os.path.dirname(path)
-    update_fz(directory)
-    exit()
-
     program_path = r"C:\Program Files\Tencent\QQNT\QQ.exe"
     if not is_program_running("QQ.exe"):
-        subprocess.Popen(program_path)
+        open_program(program_path)
         print(f"自动启动QQ，便于辅助登录")
         time.sleep(10)
     else:
         print("QQ Already running, don't reopen.")
 
-    open_program(path)
+    files = os.listdir(directory)
+    for file in files:
+        if debug == 1: print(file)
+        if '悟空' in file and 'exe' in file:
+            target_fz = os.path.join(directory, file)
+            open_program(target_fz)
+            break
+    #open_program(path)
     time.sleep(75)      #开辅助后的启动时间
     click_at(1450,956)  #规避辅助更新导致的可能提示框
     click_at(1440,972)  #规避辅助更新导致的可能提示框2
@@ -302,12 +300,13 @@ def finish_open_fz(path):
     time.sleep(15)
     result = test_get_top_window_txt()
     if result == 'update':
-        directory = os.path.dirname(path)
-        #update_fz(directory)
-    click_at(1364,375)  #click qq account
-    time.sleep(15)
-    click_at(1282,454)  #click 7 server 空海
-    time.sleep(25)
+        update_fz(directory)
+        finish_open_fz(path)
+    else:
+        click_at(1364,375)  #click qq account
+        time.sleep(15)
+        click_at(1282,454)  #click 7 server 空海
+        time.sleep(25)
 
 def finish_plant_and_set_new_plant():
     print(f"收菜和种菜")
@@ -440,7 +439,7 @@ def try_to_finish_seven(last_pet):
     click_at(911,1560)  #选择困难
     click_at(1081,1471) #点击七曜打法选择条
     click_at(*pets["魔武"]["七曜打法坐标"])
-    for count in range(2):   #七曜偶尔也会失败，重试2次
+    for count in range(3):   #七曜偶尔也会失败，重试3次
         print(f"try 七曜 {count+1}")
         click_at(1180,1460) #开始
         time.sleep(36)
@@ -470,7 +469,7 @@ def try_to_finish_newest_activity():
     #pyautogui.doubleClick(740,1520)      #虫子圣殿，虫子已经刷到极品了，不用再打
     #time.sleep(25)
 
-    print("start to do newest activity")
+    print(f"try newest activity start {time.strftime('%H:%M:%S', time.localtime())}")
     click_at(851,1405)      #选中 活动专区里的热门
     # 分别是热门活动里九个最新的活动坐标
     coordinates = [
@@ -484,7 +483,7 @@ def try_to_finish_newest_activity():
         time.sleep(42)
 
 def first_month_challege_star_tower():
-    print(f"完成星辰塔")
+    print(f"星辰塔 start {time.strftime('%H:%M:%S', time.localtime())}")
     carry_want_pets('青琼灵犬')
     click_at(1513,1325)  #click star tower
     time.sleep(1)
@@ -508,7 +507,7 @@ def first_month_challege_star_tower():
     time.sleep(10)
 
 def play_little_game_and_hang_out():
-    print(f"小游戏挂机流程")
+    print(f"小游戏挂机流程 start {time.strftime('%H:%M:%S', time.localtime())}")
     time.sleep(5)
     pyautogui.keyDown('alt')
     pyautogui.press('f4')
