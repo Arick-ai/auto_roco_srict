@@ -17,6 +17,7 @@ import numpy as np
 import re
 
 debug = 0
+personal_path = r"C:\Users\19508\Desktop\封包"  ## fz location
 
 pets = {
     "虫王": {
@@ -259,7 +260,6 @@ def update_fz(fz_path):
                 final_url = target.group(1)
                 #print(f"new page {iframe}  ----------- {inside_thing}----------{next_child}")
                 print(f"new page {target.group(1)}")
-                #download_page = browser.new_page()
                 with page.expect_download() as download_info:
                     try:
                         page.goto(final_url)
@@ -274,12 +274,12 @@ def update_fz(fz_path):
 
     print(f"end")
 
-def finish_open_fz(path):
-    directory = os.path.dirname(path)
-    program_path = r"C:\Program Files\Tencent\QQNT\QQ.exe"
+def finish_open_fz():
+    directory = personal_path
+    qq_path = r"C:\Program Files\Tencent\QQNT\QQ.exe"
     if not is_program_running("QQ.exe"):
-        open_program(program_path)
-        print(f"自动启动QQ，便于辅助登录")
+        open_program(qq_path)
+        print(f"自动启动QQ, 便于辅助登录")
         time.sleep(10)
     else:
         print("QQ Already running, don't reopen.")
@@ -292,17 +292,17 @@ def finish_open_fz(path):
             open_program(target_fz)
             break
     #open_program(path)
-    time.sleep(75)      #开辅助后的启动时间
+    time.sleep(70)      #开辅助后的启动时间
     click_at(1450,956)  #规避辅助更新导致的可能提示框
     click_at(1440,972)  #规避辅助更新导致的可能提示框2
     click_at(1438,988)  #规避辅助更新导致的可能提示框3
-    click_at(1960,1093)  #click start
-    time.sleep(15)
     result = test_get_top_window_txt()
     if result == 'update':
         update_fz(directory)
-        finish_open_fz(path)
+        finish_open_fz()
     else:
+        click_at(1960,1093)  #click start
+        time.sleep(15)
         click_at(1364,375)  #click qq account
         time.sleep(15)
         click_at(1282,454)  #click 7 server 空海
@@ -633,15 +633,15 @@ def capture_and_ocr_region(x, y, width, height):
 def try_to_challenge_the_green_chicken():
     print(f"尝试哨兵阴阴============================== {time.strftime('%H:%M:%S', time.localtime())}")
     carry_want_pets('龙王')
-    
+    try_times = 50
     click_at(1278,1324)     #选中活动专区
     click_at(1247,1411)  #选中 哨兵阴阴框
     click_at(898,1460)  #选中 打法栏
     click_at(*pets["龙王"]["哨兵打法坐标"])  #选中 龙王打法
     click_at(1056,1472)  #选中次数框
-    pyautogui.typewrite('49') #输入 尝试49次
+    pyautogui.typewrite(str(try_times)) #输入 尝试次
     click_at(1213,1481)  #点击 挑战
-    time.sleep(3)      #由于最大49次
+    time.sleep(3)      
     ocr_text = capture_and_ocr_region(1287, 800, 300, 15)#尝试获取挑战条件
     use_pet = '龙王'
     pets_list = None
@@ -653,14 +653,14 @@ def try_to_challenge_the_green_chicken():
             pets_list = {name: info for name, info in pets.items() if info["身高"] < value_matches[0]}
             for name, info in pets_list.items():
                 print(f"小于的有 {name}")
-                if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"]:
+                if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"] or '水' in info["属性"]:
                     use_pet = name
                     break
         elif '以上' in ocr_text:
             pets_list = {name: info for name, info in pets.items() if info["身高"] > value_matches[0]}
             for name, info in pets_list.items():
                 print(f"大于的有 {name}")
-                if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"]:
+                if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"] or '水' in info["属性"]:
                     use_pet = name
                     break
         elif '围内' in ocr_text:
@@ -668,7 +668,7 @@ def try_to_challenge_the_green_chicken():
             pets_list = {name: info for name, info in pets.items() if info["身高"] > value_matches[0] and info["身高"] < value_matches[1]}
             for name, info in pets_list.items():
                 print(f"大于{value_matches[0]} 且小于 {value_matches[1]} 的有 {name}")
-                if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"]:
+                if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"] or '水' in info["属性"]:
                     use_pet = name
                     break
         
@@ -687,14 +687,14 @@ def try_to_challenge_the_green_chicken():
             pets_list = {name: info for name, info in pets.items() if info["体重"] < value_matches[0]}
             for name, info in pets_list.items():
                 print(f"小于的有 {name}")
-                if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"]:
+                if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"] or '水' in info["属性"]:
                     use_pet = name
                     break
         elif '以上' in ocr_text:
             pets_list = {name: info for name, info in pets.items() if info["体重"] > value_matches[0]}
             for name, info in pets_list.items():
                 print(f"大于的有 {name}")
-                if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"]:
+                if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"] or '水' in info["属性"]:
                     use_pet = name
                     break
         elif '内' in ocr_text:
@@ -702,7 +702,7 @@ def try_to_challenge_the_green_chicken():
             pets_list = {name: info for name, info in pets.items() if info["体重"] > value_matches[0] and info["体重"] < value_matches[1]}
             for name, info in pets_list.items():
                 print(f"大于{value_matches[0]} 且小于 {value_matches[1]} 的有 {name}")
-                if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"]:
+                if '冰' in info["属性"] or '机械' in info["属性"] or '武' in info["属性"] or '水' in info["属性"]:
                     use_pet = name
                     break
 
@@ -743,59 +743,115 @@ def try_to_challenge_the_green_chicken():
         click_at(898,1460)  #选中 打法栏
         click_at(*pets[use_pet]["哨兵打法坐标"])  #对应的打法
         click_at(1056,1472)  #选中次数框
-        pyautogui.typewrite('49') #输入 尝试49次
+        pyautogui.typewrite(str(try_times)) #输入 尝试次
         click_at(1213,1481)  #点击 挑战
     time.sleep(2)
 
+    if use_pet == '虫王':
+        try_times = 2*try_times
     click_at(1485,947)  #确定挑战 第1个怪
-    time.sleep(49)      #由于最大49次
+    time.sleep(try_times)      #由于最大49次
     #第1个和第2个，确定按钮位置没有太大变化，坐标沿用
     click_at(1485,947)  #确定挑战 第2个怪 
-    time.sleep(49)
+    time.sleep(try_times)
     #第3，4，5个的确定按钮位置也没有太大变化，坐标沿用
     click_at(1476,922)  #确定挑战 第3个怪 
-    time.sleep(49)
+    time.sleep(try_times)
     click_at(1476,922)  #确定挑战 第4个怪 
-    time.sleep(49)
+    time.sleep(try_times)
     click_at(1476,922)  #确定挑战 第5个怪 
-    time.sleep(49)
+    time.sleep(try_times)
     print(f"尝试哨兵阴阴结束============================== {time.strftime('%H:%M:%S', time.localtime())}")
 
+# 所有可选的函数
+functions = [finish_open_fz, finish_plant_and_set_new_plant, get_most_tiny_things, first_month_challege_star_tower, 
+             try_to_challenge_the_green_chicken, try_to_finish_newest_activity, play_little_game_and_hang_out, show_success_message]
+
+# 函数名的对应文本
+function_names = [
+    "打开辅助的全部准备", "收菜+种上特定的菜", "打蓝萃以及在王国取物", "灵犬扫荡以及挑战星辰塔", 
+    "智能打哨兵阴阴(可能打不过田鸡)", "七曜暗黑城勇者馆合体机+尝试新闻活动", "结尾小游戏挂机", "结束提醒"
+]
+
+selected_functions = []
+def on_ok():
+    # 检查哪些选项被选中
+    for i, var in enumerate(vars):
+        if var.get() == 1:
+            selected_functions.append(functions[i])
+    # 提示框
+    root.destroy()
+def on_cancel():# 取消按钮的回调函数
+    root.destroy()
+def select_all():# 全选按钮的回调函数
+    for var in vars:
+        var.set(1)
+def deselect_all():# 反选按钮的回调函数
+    for var in vars:
+        var.set(0)
+
+root = tk.Tk()
+# 创建勾选框变量
+vars = [tk.IntVar(value=1) for _ in range(8)]  # 8个选项，默认全选
+def info_box():
+    root.title("选择本次执行的流程")
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    # 设置窗口宽高
+    window_width = 550
+    window_height = 600
+    # 计算窗口位置：居中显示
+    position_top = int(screen_height / 2 - window_height / 2)
+    position_left = int(screen_width / 2 - window_width / 2)
+
+    root.geometry(f'{window_width}x{window_height}+{position_left}+{position_top}')# 设置窗口位置
+    # 创建勾选框
+    for i in range(8):
+        checkbox = tk.Checkbutton(root, text=function_names[i], variable=vars[i])
+        checkbox.pack(anchor='w', padx=20, pady=4)# 使用 'w' 使勾选框靠左对齐
+    # 创建按钮
+    button_select_all = tk.Button(root, text="全选", command=select_all)
+    button_deselect_all = tk.Button(root, text="反选", command=deselect_all)
+    button_ok = tk.Button(root, text="确定", command=on_ok)
+    button_cancel = tk.Button(root, text="取消", command=on_cancel)
+    # 布局按钮
+    button_select_all.pack(side="left", padx=20)
+    button_deselect_all.pack(side="left", padx=20)
+    button_ok.pack(side="left", padx=20)
+    button_cancel.pack(side="left", padx=20)
+    root.mainloop()
+
 def main():
-    #process_name = "Program.exe"  ##need edit
     #time.sleep(6)
-    #try_to_challenge_the_green_chicken()
-    #try_to_finish_newest_activity()
-    #play_little_game_and_hang_out()
-    #ocr_text = capture_and_ocr_region(1287, 800, 300, 15)
-    #exit()
+    #ocr_text = capture_and_ocr_region(1287, 800, 300, 15) 
+    info_box()#创建选择窗口
+    if selected_functions and selected_functions[0] != finish_open_fz:
+        print(f"\n 请确保已经是前面流程的最终状态")
+        time.sleep(1)
+        click_at(1400, 1580)
+
+    for func in selected_functions:
+        func()# 执行选中的函数
+        print(f"{func} is selected")
+    exit()
     #--------0 doing something may get u rich
     #daily_uxlink_job()
-
     #--------1 open
-    program_path = r"C:\Users\19508\Desktop\封包\find_fz_and_run.bat"  ## find newest fz and open it
-    finish_open_fz(program_path)
-
-    #--------3 收菜并种上自己想种的菜
+    finish_open_fz()
+    #--------2 收菜并种上自己想种的菜
     finish_plant_and_set_new_plant()
-
-    #--------4 蓝色精粹、获取游戏币、取物助手取各种灵石
+    #--------3 蓝色精粹、获取游戏币、取物助手取各种灵石
     get_most_tiny_things()
-
-    #--------5 尝试狗子打法自动打第八层以及扫荡，减少每月刷新星辰塔的时间消耗
+    #--------4 尝试狗子打法自动打第八层以及扫荡，减少每月刷新星辰塔的时间消耗
     first_month_challege_star_tower()
-
-    #--------6 尝试一下打哨兵
+    #--------5 尝试一下打哨兵
     try_to_challenge_the_green_chicken()
-
-    #--------7 打完哨兵再尝试一下打最新的活动，可能失败，不过有成功的就可以节约时间###这个现在看来是挺成功的
+    #--------6 打暗黑城，勇者训练馆，合体机，七曜圣地，以及尝试最新的新闻活动(能成功就赚了，不成功也没事)
     try_to_finish_newest_activity()
-
-    #--------8 尝试完所有的东西之后，放到小游戏挂机，以避免手动操作时，因为在线时间太长而被无法战斗
+    #--------7 尝试完所有的东西之后，放到小游戏挂机，避免手动检查时，因为在线时间太长而被无法战斗
     play_little_game_and_hang_out()
-
     #open_browser("http://www.baidu.com")  #change as u need
-    #--------9 show success msg
+    #--------8 show success msg
     show_success_message()
 
 if __name__ == "__main__":
